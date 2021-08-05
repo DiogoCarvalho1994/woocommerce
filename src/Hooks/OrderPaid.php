@@ -22,7 +22,40 @@ class OrderPaid
         $this->parent = $parent;
         add_action('woocommerce_order_status_completed', [$this, 'documentCreateComplete']);
         add_action('woocommerce_order_status_processing', [$this, 'documentCreateProcessing']);
+        
+        // Novo Status
+        add_action('woocommerce_order_status_pronto_envio', [$this, 'documentCreateProntoEnvio']);
     }
+    
+    
+    
+    // Nova Função Pronto Para Envio
+    public function documentCreateProntoEnvio($orderId)
+    {
+        try {
+            /** @noinspection NotOptimalIfConditionsInspection */
+            if (Start::login(true) && defined('INVOICE_AUTO') && INVOICE_AUTO) {
+                if (!defined('INVOICE_AUTO_STATUS') || (defined('INVOICE_AUTO_STATUS') && INVOICE_AUTO_STATUS === 'pronto-para-envio')) {
+                    if ($this->addOrderToDocumentsInProgress($orderId)) {
+                        Log::setFileName('DocumentsAuto');
+                        Log::write('A gerar automaticamente o documento da encomenda no estado "Pronto Para Envio" ' . $orderId);
+
+                        $document = new Documents($orderId);
+                        $document->createDocument();
+
+                        $this->throwMessages($document);
+                        $this->removeOrderFromDocumentsInProgress($orderId);
+                    }
+                }
+            }
+        } catch (Exception $ex) {
+            Log::write('Fatal error: ' . $ex->getMessage());
+        }
+    }
+    
+    
+    
+    
 
     public function documentCreateComplete($orderId)
     {
